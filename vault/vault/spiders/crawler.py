@@ -1,26 +1,34 @@
+import os
 import string
 import scrapy
-from urllib.parse import urlparse
+from scrapy.http import FormRequest
+from urllib.parse import urlparse, parse_qs
+from pathlib import Path
 
 
 class CrawlerSpider(scrapy.Spider):
     name = "crawler"
     allowed_domains = ["vimm.net"]
     start_urls = [
-                    #"https://vimm.net/vault/Atari2600", 
-                    #"https://vimm.net/vault/NES",
-                    #"https://vimm.net/vault/SMS", # Master System
-                    #"https://vimm.net/vault/Genesis", # Mega Drive
-                    #"https://vimm.net/vault/SNES",
-                    #"https://vimm.net/vault/N64",
-                    #"https://vimm.net/vault/GB",
+                    "https://vimm.net/vault/Atari2600", 
+                    "https://vimm.net/vault/NES",
+                    "https://vimm.net/vault/SMS", # Master System
+                    "https://vimm.net/vault/Genesis", # Mega Drive
+                    "https://vimm.net/vault/SNES",
+                    "https://vimm.net/vault/N64",
+                    "https://vimm.net/vault/GB",
                     "https://vimm.net/vault/Lynx",
-                    #"https://vimm.net/vault/GG",
-                    #"https://vimm.net/vault/GBC",
-                    #"https://vimm.net/vault/GBA"
+                    "https://vimm.net/vault/GG",
+                    "https://vimm.net/vault/GBC",
+                    "https://vimm.net/vault/GBA"
                   ]
 
-    def parse_domain(self, response):
+    def _parse_url_param(self, url, parameter):
+        parsed_url = urlparse(url)
+        captured_value = parse_qs(parsed_url.query)[parameter][0]
+        return captured_value
+
+    def _parse_domain(self, response):
         parsed_uri = urlparse(response.url)
         domain = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri)
         return domain
@@ -43,21 +51,26 @@ class CrawlerSpider(scrapy.Spider):
         cartridge_urls = response.xpath(cartridge_xpath)
 
         for url in cartridge_urls:
-            full_domain_url = self.parse_domain(response) + url.extract()
-            self.logger.info("parse(), ull_domain_url: %s", full_domain_url)
+            full_domain_url = self._parse_domain(response) + url.extract()
+            self.logger.info("parse(), full_domain_url: %s", full_domain_url)
             yield scrapy.Request(url=full_domain_url, callback=self.parse_cartridge, meta={'console_name': console_name})
 
-    def parse_cartridge(self, response):
-        self.logger.info("parse_cartridge(), response.url: %s", response.url)
-        console_name = response.meta['console_name']
-        self.logger.info("parse_cartridge(), console_name: %s", console_name)
-
+    def parse_cartridge(self, response):        
         good_title = ''.join(response.xpath('//span[@id="data-good-title"]/text()').extract()).strip()
-        self.logger.info("parse_cartridge(), good_title: '%s'", good_title)
-
-        img_src = ''.join(response.xpath('//a[contains(@onclick, "libretro")]/img/@src').extract()).strip()
-        img_src = self.parse_domain(response) + img_src
-        self.logger.info("parse_cartridge(), img_src: '%s'", img_src)
-
-        download_file = response.xpath('//form[@id="download_form"]')
-        self.logger.info("parse_cartridge(), download_file: '%s'", download_file)
+        
+        form_data = {
+            "mediaId": response.xpath('//form[@id="download_form"]/input[@name="mediaId"]/@value').extract()[0],
+            "alt": "0",
+            'good_file': Path(good_title).stem + ".zip",
+            'console_name': response.meta['console_name']
+        }
+        yield FormRequest.from_response(response, formid='download_form', method="GET",
+                                        formdata=form_data, callback=self.parse_download)
+        
+    def parse_download(self, response):
+        folder = "./ROMS/" + self._parse_url_param(response.url, 'console_name') + "/"
+        file_name = folder + self._parse_url_param(response.url, 'good_file')
+        self.logger.info("parse_dowload(), saving file: '%s' '%s'", len(response.body), file_name)
+        os.makedirs(folder,  exist_ok=True)
+        with open(file_name, 'wb') as f:
+            f.write(response.body)
