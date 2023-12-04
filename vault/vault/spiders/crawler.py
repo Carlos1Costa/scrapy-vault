@@ -12,12 +12,12 @@ class CrawlerSpider(scrapy.Spider):
     start_urls = [
                     #"https://vimm.net/vault/Atari2600", 
                     #"https://vimm.net/vault/NES",
-                    "https://vimm.net/vault/SMS", # Master System
+                    "https://vimm.net/vault/SMS", # Master System (terminar de baixar)
                     #"https://vimm.net/vault/Genesis", # Mega Drive
                     #"https://vimm.net/vault/SNES",
                     #"https://vimm.net/vault/N64",
                     #"https://vimm.net/vault/GB",
-                    #"https://vimm.net/vault/Lynx",
+                    #"https://vimm.net/vault/Lynx", #ja foi
                     #"https://vimm.net/vault/GG",
                     #"https://vimm.net/vault/GBC",
                     #"https://vimm.net/vault/GBA"
