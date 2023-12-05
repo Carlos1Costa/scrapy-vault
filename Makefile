@@ -5,4 +5,7 @@ run:
 clean:
 	rm -R --verbose ./vault/ROMS/*
 
+extract:
+	python3 vault/extractor.py
+
 .PHONY: run
